@@ -633,8 +633,8 @@ def view_ticket_analytics(ticket_id):
                         is_flagged = student_flags.get(str(q_idx), False)
                         flag_symbol = " 🚩" if is_flagged else ""
                         
-                        # Compare student_answer with correct_answer properly
-                        is_correct = student_answer == correct_answer
+                        # FIX: Ensure proper string comparison
+                        is_correct = str(student_answer).strip() == str(correct_answer).strip()
                         
                         # Show correct status symbol
                         status = "✅" if is_correct else "❌"
