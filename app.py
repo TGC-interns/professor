@@ -13,7 +13,6 @@ from ui import app_ui
 
 db = init_firestore()
 
-# Subject list for dropdown
 subjects = ["Cloud Computing", "Machine Learning", "Cybersecurity", "Data Structures", "Networking"]
 
 GOOGLE_API_KEY = st.secrets["api_keys"]["google_api_key"]
