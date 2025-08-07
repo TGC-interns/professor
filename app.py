@@ -417,7 +417,6 @@ def view_published_tickets_page():
     st.header("🎫 My Published Exit Tickets")
     st.markdown(app_ui, unsafe_allow_html=True)
     
-    # Single teacher system - use "Professor" as the teacher name
     teacher_name = "Professor"
     
     from firebase_helper import get_all_tickets_by_teacher

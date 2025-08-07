@@ -44,7 +44,6 @@ def generate_ticket_id():
     import random
     import string
     
-    # Generate a 6-character alphanumeric ID (uppercase for readability)
     ticket_id = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
     return ticket_id
 
