@@ -575,11 +575,6 @@ def view_ticket_analytics(ticket_id):
                         for student in question_flags['flagged_by']:
                             st.markdown(f"- {student}")
                         
-                        st.markdown("**Possible reasons for flagging:**")
-                        st.markdown("- Question unclear or confusing")
-                        st.markdown("- Content not covered in class") 
-                        st.markdown("- Question might be out of syllabus")
-                        st.markdown("- Possible error in question or options")
     
     st.markdown("---")
     
@@ -622,13 +617,22 @@ def view_ticket_analytics(ticket_id):
                 responses_dict = response.get('responses', {})
                 questions = ticket_data.get('questions', [])
                 
+                # FIX: Handle original indices properly
                 for q_idx_str, student_answer in responses_dict.items():
-                    q_idx = int(q_idx_str)  # Convert string back to int for indexing
-                    if q_idx < len(questions):
-                        question = questions[q_idx]
+                    q_idx = int(q_idx_str)  # This is the original question index
+                    
+                    # Find the question by its original index (not position in list)
+                    question = None
+                    for q in questions:
+                        # In teacher's full question list, index matches position
+                        if questions.index(q) == q_idx:
+                            question = q
+                            break
+                    
+                    if question:
                         correct_answer = question['correct_answer']
                         
-                        # Check if this question was flagged
+                        # Check if this question was flagged using original index
                         is_flagged = student_flags.get(str(q_idx), False)
                         flag_symbol = " 🚩" if is_flagged else ""
                         
@@ -651,8 +655,48 @@ def view_ticket_analytics(ticket_id):
                         # Show flag reason if flagged
                         if is_flagged:
                             st.warning(f"    🚩 Student flagged this question as unclear/out of syllabus")
+                    else:
+                        st.error(f"❌ Question {q_idx+1}: Question not found in ticket data")
     else:
         st.info("No student responses yet.")
+
+
+def calculate_flag_statistics(responses, questions):
+    """Calculate flag statistics from student responses"""
+    flag_stats = {
+        'total_flags': 0,
+        'flagged_questions': 0,
+        'question_flag_details': {}
+    }
+    
+    # Initialize question details using original indices
+    for i, question in enumerate(questions):
+        flag_stats['question_flag_details'][i] = {
+            'question_text': question.get('question', 'Unknown'),
+            'flag_count': 0,
+            'flagged_by': []
+        }
+    
+    # Count flags from all responses
+    for response in responses:
+        student_name = response.get('student_name', 'Unknown')
+        flags = response.get('flags', {})
+        
+        for q_idx_str, is_flagged in flags.items():
+            if is_flagged:
+                q_idx = int(q_idx_str)  # This is the original question index
+                if q_idx in flag_stats['question_flag_details']:
+                    flag_stats['question_flag_details'][q_idx]['flag_count'] += 1
+                    flag_stats['question_flag_details'][q_idx]['flagged_by'].append(student_name)
+                    flag_stats['total_flags'] += 1
+    
+    # Count how many questions were flagged
+    flag_stats['flagged_questions'] = len([
+        q for q in flag_stats['question_flag_details'].values() 
+        if q['flag_count'] > 0
+    ])
+    
+    return flag_stats
 
 def calculate_flag_statistics(responses, questions):
     """Calculate flag statistics from student responses"""
