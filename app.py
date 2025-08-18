@@ -579,19 +579,68 @@ def view_ticket_analytics(ticket_id):
     
     # Display individual responses
     if analytics['total_responses'] > 0:
-        st.subheader("📋 Student Responses")
+        st.subheader("📋 Student Responses (Ranked by Score)")
         
         responses = analytics.get('responses', [])
-        for i, response in enumerate(responses):
+        
+        # ADDED: Sort responses by score (descending) then by submission time (ascending)
+        def get_sort_key(response):
+            # Get percentage score (higher is better, so we negate for descending order)
+            percentage = response.get('score', {}).get('percentage', 0)
+            
+            # Get submission time (earlier is better for tie-breaking)
+            completed_at = response.get('completed_at')
+            
+            # Handle different timestamp formats
+            try:
+                if hasattr(completed_at, 'timestamp'):
+                    # Firebase timestamp
+                    timestamp = completed_at.timestamp()
+                elif hasattr(completed_at, 'to_pydatetime'):
+                    # Firestore timestamp
+                    timestamp = completed_at.to_pydatetime().timestamp()
+                elif isinstance(completed_at, str):
+                    # String timestamp - try to parse
+                    from datetime import datetime
+                    try:
+                        dt = datetime.fromisoformat(completed_at.replace('Z', '+00:00'))
+                        timestamp = dt.timestamp()
+                    except:
+                        timestamp = float('inf')  # Put unparseable times at the end
+                else:
+                    timestamp = float('inf')  # Put unknown times at the end
+            except:
+                timestamp = float('inf')
+            
+            # Return tuple: (-percentage for descending score, timestamp for ascending time)
+            return (-percentage, timestamp)
+        
+        # Sort the responses
+        sorted_responses = sorted(responses, key=get_sort_key)
+        
+        # Display sorted responses with ranking
+        for rank, response in enumerate(sorted_responses, 1):
             # Count flags for this student
             student_flags = response.get('flags', {})
             flag_count = len([f for f in student_flags.values() if f])
             flag_indicator = f" 🚩({flag_count})" if flag_count > 0 else ""
             
-            with st.expander(f"👤 {response.get('student_name', 'Unknown')} - {response.get('score', {}).get('percentage', 0):.1f}%{flag_indicator}"):
+            # Add ranking medals/indicators
+            rank_indicator = ""
+            if rank == 1:
+                rank_indicator = "🥇 "
+            elif rank == 2:
+                rank_indicator = "🥈 "
+            elif rank == 3:
+                rank_indicator = "🥉 "
+            else:
+                rank_indicator = f"#{rank} "
+            
+            with st.expander(f"{rank_indicator}👤 {response.get('student_name', 'Unknown')} - {response.get('score', {}).get('percentage', 0):.1f}%{flag_indicator}"):
                 col1, col2 = st.columns([1, 1])
                 
                 with col1:
+                    st.markdown(f"**Rank:** {rank}")
                     st.markdown(f"**Score:** {response.get('score', {}).get('correct_count', 0)}/{response.get('score', {}).get('total_questions', 0)}")
                     st.markdown(f"**Percentage:** {response.get('score', {}).get('percentage', 0):.1f}%")
                     if flag_count > 0:
@@ -658,8 +707,7 @@ def view_ticket_analytics(ticket_id):
                         st.error(f"❌ Question {q_idx+1}: Question not found in ticket data")
     else:
         st.info("No student responses yet.")
-
-
+        
 def calculate_flag_statistics(responses, questions):
     """Calculate flag statistics from student responses"""
     flag_stats = {
